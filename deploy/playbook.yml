@@ -1,4 +1,4 @@
-- hosts: web
+- hosts: appserver
   become: yes
   tasks:
 
