@@ -1,0 +1,91 @@
+- hosts: web
+  become: yes
+  tasks:
+
+    - name: Install Docker
+      apt:
+        name: docker.io
+        state: present
+        update_cache: yes
+
+    - name: Install Docker Compose
+      get_url:
+        url: https://github.com/docker/compose/releases/download/v2.24.6/docker-compose-linux-x86_64
+        dest: /usr/local/bin/docker-compose
+        mode: '0755'
+
+    - name: Install NGINX and dependencies
+      apt:
+        name:
+          - nginx
+          - php
+          - php-mysql
+          - git
+          - curl
+        state: present
+        update_cache: yes
+
+    - name: Start and enable NGINX
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: Copy NGINX config
+      copy:
+        src: "{{ playbook_dir }}/../nginx.conf"
+        dest: /etc/nginx/sites-available/default
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: Restart NGINX
+      systemd:
+        name: nginx
+        state: restarted
+    
+    - name: Initialize Docker Swarm
+      shell: docker swarm init || true
+
+    - name: Create overlay network for Swarm
+      shell: docker network create --driver overlay web || true
+
+    - name: Configure Node Exporter
+      block:
+        - name: Download Node Exporter
+          get_url:
+            url: https://github.com/prometheus/node_exporter/releases/download/v1.8.0/node_exporter-1.8.0.linux-amd64.tar.gz
+            dest: /tmp/node_exporter.tar.gz
+
+        - name: Extract Node Exporter
+          unarchive:
+            src: /tmp/node_exporter.tar.gz
+            dest: /opt/
+            remote_src: yes
+
+        - name: Create symlink
+          file:
+            src: /opt/node_exporter-1.8.0.linux-amd64/node_exporter
+            dest: /usr/local/bin/node_exporter
+            state: link
+
+        - name: Create systemd service for Node Exporter
+          copy:
+            dest: /etc/systemd/system/node_exporter.service
+            content: |
+              [Unit]
+              Description=Node Exporter
+              After=network.target
+
+              [Service]
+              User=nobody
+              ExecStart=/usr/local/bin/node_exporter
+
+              [Install]
+              WantedBy=default.target
+
+        - name: Start Node Exporter
+          systemd:
+            name: node_exporter
+            enabled: yes
+            state: started
