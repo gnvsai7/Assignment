@@ -17,8 +17,8 @@ services:
       replicas: 1
     networks:
       - web
-    ports:
-      - "8000:80"
+    # ports:
+    #   - "8000:80"
 networks:
   web:
     external: true
