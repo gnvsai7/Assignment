@@ -118,7 +118,7 @@ jobs:
       - name: Run Ansible Playbook
         env:
           ANSIBLE_HOST_KEY_CHECKING: False
-        run: ansible-playbook deploy/deploy.yml -i deploy/inventory.ini
+        run: ansible-playbook deploy/playbook.yml -i deploy/inventory.ini
       
       
       - name: SSH into EC2 and Update Docker Swarm Service
